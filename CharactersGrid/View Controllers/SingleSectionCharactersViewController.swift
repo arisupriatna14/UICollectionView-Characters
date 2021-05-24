@@ -13,7 +13,7 @@ class SingleSectionCharactersViewController: UIViewController {
     let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
     var characters = Universe.ff7r.stubs {
         didSet {
-            collectionView.reloadData()
+            updateCollectionView(oldItems: oldValue, newItems: characters)
         }
     }
     let segmentedControl = UISegmentedControl(
@@ -22,9 +22,34 @@ class SingleSectionCharactersViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupNavigationItem()
         setupCollectionView()
         setupLayout()
         setupSegmentedControl()
+    }
+    
+    private func updateCollectionView(oldItems: [Character], newItems: [Character]) {
+        collectionView.performBatchUpdates {
+            let diff = newItems.difference(from: oldItems)
+            diff.forEach { change in
+                switch change {
+                case let .remove(offset, _, _):
+                    self.collectionView.deleteItems(at: [IndexPath(item: offset, section: 0)])
+                case let .insert(offset, _, _):
+                    self.collectionView.insertItems(at: [IndexPath(item: offset, section: 0)])
+                }
+            }
+        } completion: { _ in
+            let headerIndexPaths = self.collectionView.indexPathsForVisibleSupplementaryElements(ofKind: UICollectionView.elementKindSectionHeader)
+            
+            headerIndexPaths.forEach { indexPath in
+                let headerView = self.collectionView.supplementaryView(forElementKind: UICollectionView.elementKindSectionHeader, at: indexPath) as! HeaderView
+                
+                headerView.setup(text: "\(self.characters.count) Character(s)")
+            }
+            self.collectionView.collectionViewLayout.invalidateLayout()
+        }
+
     }
     
     private func setupCollectionView() {
@@ -67,8 +92,21 @@ class SingleSectionCharactersViewController: UIViewController {
         navigationItem.titleView = segmentedControl
     }
     
+    private func setupNavigationItem() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "shuffle"),
+            style: .plain,
+            target: self,
+            action: #selector(shuffleTapped)
+        )
+    }
+    
     @objc func segmentChanged(_ sender: UISegmentedControl) {
         characters = sender.selectedUniverse.stubs
+    }
+    
+    @objc func shuffleTapped() {
+        characters.shuffle()
     }
 
 }

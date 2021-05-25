@@ -19,7 +19,10 @@ class MultipleSectionCharactersViewController: UIViewController {
     let segmentedControl = UISegmentedControl(
         items: Universe.allCases.map { $0.title }
     )
-
+    
+    private var cellRegistration: UICollectionView.CellRegistration<CharacterCell, Character>!
+    private var headerRegistration: UICollectionView.SupplementaryRegistration<HeaderView>!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -85,10 +88,8 @@ class MultipleSectionCharactersViewController: UIViewController {
                 headerView?.setup(text: "\(section.category) \(section.characters.count)".uppercased())
             }
         }
-
-
+   
     }
-    
     
     private func setupCollectionView() {
         collectionView.frame = view.bounds
@@ -99,14 +100,23 @@ class MultipleSectionCharactersViewController: UIViewController {
         collectionView.delegate = self
         collectionView.dataSource = self
         
-        collectionView.register(CharacterCell.self, forCellWithReuseIdentifier: "Cell")
-        collectionView.register(
-            HeaderView.self,
-            forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader,
-            withReuseIdentifier: "Header"
-        )
+        registerCollectionViewCell()
         
         view.addSubview(collectionView)
+    }
+    
+    private func registerCollectionViewCell() {
+        cellRegistration = UICollectionView.CellRegistration(handler: { (cell: CharacterCell, _, character: Character)in
+            cell.setup(character: character)
+        })
+        
+        headerRegistration = UICollectionView.SupplementaryRegistration(
+            elementKind: UICollectionView.elementKindSectionHeader,
+            handler: { (header: HeaderView, _, indexPath) in
+                let section = self.sectionedStubs[indexPath.section]
+                header.setup(text: "\(section.category) \(section.characters.count)")
+            }
+        )
     }
     
     private func setupLayout() {
@@ -144,7 +154,7 @@ class MultipleSectionCharactersViewController: UIViewController {
             SectionCharacters(category: $0.category, characters: $0.characters.shuffled())
         }
     }
-
+    
 }
 
 extension MultipleSectionCharactersViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
@@ -165,18 +175,10 @@ extension MultipleSectionCharactersViewController: UICollectionViewDataSource, U
         _ collectionView: UICollectionView,
         cellForItemAt indexPath: IndexPath
     ) -> UICollectionViewCell {
-        let defaultCell = UICollectionViewCell()
-        let cell = collectionView.dequeueReusableCell(
-            withReuseIdentifier: "Cell",
-            for: indexPath
-        ) as? CharacterCell
+        let character = sectionedStubs[indexPath.section].characters[indexPath.item]
+        let cell = collectionView.dequeueConfiguredReusableCell(using: cellRegistration, for: indexPath, item: character)
         
-        if let cell = cell {
-            let character = sectionedStubs[indexPath.section].characters[indexPath.item]
-            cell.setup(character: character)
-        }
-        
-        return cell ?? defaultCell
+        return cell
     }
     
     /// Setup HeaderView
@@ -185,17 +187,8 @@ extension MultipleSectionCharactersViewController: UICollectionViewDataSource, U
         viewForSupplementaryElementOfKind kind: String,
         at indexPath: IndexPath
     ) -> UICollectionReusableView {
-        let defaultView = UICollectionReusableView()
-        let headerView = collectionView.dequeueReusableSupplementaryView(
-            ofKind: UICollectionView.elementKindSectionHeader,
-            withReuseIdentifier: "Header",
-            for: indexPath
-        ) as? HeaderView
-        
-        let section = sectionedStubs[indexPath.section]
-        headerView?.setup(text: "\(section.category) \(section.characters.count)".uppercased())
-        
-        return headerView ?? defaultView
+        let headerView = collectionView.dequeueConfiguredReusableSupplementary(using: headerRegistration, for: indexPath)
+        return headerView
     }
     
     /// Setup size HeaderView
